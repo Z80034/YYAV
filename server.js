@@ -1,20 +1,24 @@
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const bcryptjs = require('bcryptjs'); // 替换 bcrypt 为 bcryptjs
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 
 const app = express();
-const mongoUrl = 'mongodb://localhost:27017';
-const dbName = 'yyav';
-const port = 3000;
 
+// 从环境变量获取 MongoDB 连接字符串和端口
+const mongoUrl = process.env.MONGO_URL || 'mongodb://localhost:27017'; // 使用环境变量
+const dbName = 'yyav';
+const port = process.env.PORT || 3000; // Render 使用 PORT 环境变量
+
+// 中间件
 app.use(express.json());
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || origin.startsWith('http://localhost')) {
+    // 允许 Render 的前端域名和本地开发
+    if (!origin || origin.startsWith('http://localhost') || origin.includes('onrender.com')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -24,7 +28,18 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// 配置 multer 用于文件上传
+// 提供静态文件（HTML、CSS、JS 等）
+app.use(express.static(path.join(__dirname, '.')));
+
+// 提供视频和图片的静态文件访问（临时方案，建议使用云存储）
+app.use('/videos', express.static(path.join(__dirname, 'videos')), (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*'); // 允许所有来源访问视频
+  res.header('Access-Control-Allow-Methods', 'GET');
+  next();
+});
+app.use('/images', express.static(path.join(__dirname, 'images')));
+
+// 配置 multer 用于文件上传（临时存储，建议使用云存储）
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'videos/');
@@ -35,14 +50,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// 提供静态文件访问（视频文件和图片）
-app.use('/videos', express.static(path.join(__dirname, 'videos')), (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:8080');
-  res.header('Access-Control-Allow-Methods', 'GET');
-  next();
-});
-app.use('/images', express.static(path.join(__dirname, 'images')));
-
+// MongoDB 连接
 let db;
 (async () => {
   const client = new MongoClient(mongoUrl, { connectTimeoutMS: 5000 });
@@ -52,6 +60,7 @@ let db;
     db = client.db(dbName);
   } catch (error) {
     console.error('❌ MongoDB 连接失败:', error);
+    // 不退出程序，继续运行（前端可能不依赖数据库）
   }
 })();
 
@@ -70,6 +79,12 @@ function verifyToken(req, res, next) {
   }
 }
 
+// 根路径路由
+app.get('/', (req, res) => {
+  console.log('访问根路径 /');
+  res.sendFile(path.join(__dirname, 'index.html')); // 提供 index.html
+});
+
 // 注册接口
 app.post('/api/register', async (req, res) => {
   try {
@@ -78,12 +93,16 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ message: '用户名、手机号和密码不能为空' });
     }
 
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
+
     const existingUser = await db.collection('users').findOne({ username });
     if (existingUser) {
       return res.status(400).json({ message: '用户名已存在' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcryptjs.hash(password, 10); // 使用 bcryptjs
     const user = {
       username,
       phone,
@@ -105,12 +124,16 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
+
     const user = await db.collection('users').findOne({ username });
     if (!user) {
       return res.status(400).json({ message: '用户不存在' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcryptjs.compare(password, user.password); // 使用 bcryptjs
     if (!isMatch) {
       return res.status(400).json({ message: '密码错误' });
     }
@@ -126,6 +149,9 @@ app.post('/api/login', async (req, res) => {
 // 获取视频列表（允许未登录用户访问）
 app.get('/api/videos', async (req, res) => {
   try {
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
     const videos = await db.collection('videos').find().toArray();
     res.json(videos);
   } catch (error) {
@@ -139,6 +165,10 @@ app.post('/api/check-video-access', verifyToken, async (req, res) => {
   try {
     const { videoId } = req.body;
     const userId = req.user.userId;
+
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
 
     const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     if (!user) {
@@ -170,6 +200,10 @@ app.post('/api/check-video-access', verifyToken, async (req, res) => {
 app.get('/api/user', verifyToken, async (req, res) => {
   try {
     const userId = req.user.userId;
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
+
     const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
@@ -194,6 +228,10 @@ app.post('/api/recharge', verifyToken, async (req, res) => {
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ message: '请输入有效的充值金额' });
+    }
+
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
     }
 
     const result = await db.collection('users').updateOne(
@@ -227,6 +265,10 @@ app.post('/api/admin/update-wallet', async (req, res) => {
       return res.status(400).json({ message: '用户名和金额不能为空' });
     }
 
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
+
     const user = await db.collection('users').findOne({ username });
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
@@ -244,7 +286,7 @@ app.post('/api/admin/update-wallet', async (req, res) => {
   }
 });
 
-// 上传视频接口
+// 上传视频接口（建议使用云存储）
 app.post('/api/upload-video', upload.single('video'), async (req, res) => {
   try {
     const { title } = req.body;
@@ -257,7 +299,13 @@ app.post('/api/upload-video', upload.single('video'), async (req, res) => {
       return res.status(400).json({ message: '标题和视频文件不能为空' });
     }
 
-    const videoUrl = `http://localhost:3000/videos/${req.file.filename}`;
+    // 注意：Render 的文件系统是临时的，上传的文件会在部署后丢失
+    // 建议使用云存储（如阿里云 OSS 或 AWS S3）存储视频
+    const videoUrl = `/videos/${req.file.filename}`; // 临时 URL，建议替换为云存储 URL
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
+
     await db.collection('videos').insertOne({
       title,
       url: videoUrl,
@@ -277,6 +325,10 @@ app.post('/api/purchase', verifyToken, async (req, res) => {
   try {
     const { type, videoId } = req.body;
     const userId = req.user.userId;
+
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
 
     const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     if (!user) {
@@ -325,7 +377,7 @@ app.post('/api/purchase', verifyToken, async (req, res) => {
       return res.status(400).json({ message: '无效的购买请求' });
     }
 
-    const updatedUser = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    const updatedUser = await db.collection('uses').findOne({ _id: new ObjectId(userId) });
     res.json({
       message: '购买成功',
       user: { username: updatedUser.username, wallet: updatedUser.wallet, isMember: updatedUser.isMember, membershipPurchasedAt: updatedUser.membershipPurchasedAt }
@@ -341,6 +393,10 @@ app.get('/api/check-purchase/:videoId', verifyToken, async (req, res) => {
   try {
     const { videoId } = req.params;
     const userId = req.user.userId;
+
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
 
     const purchase = await db.collection('purchases').findOne({
       userId: new ObjectId(userId),
@@ -358,6 +414,10 @@ app.get('/api/check-purchase/:videoId', verifyToken, async (req, res) => {
 app.get('/api/my-videos', verifyToken, async (req, res) => {
   try {
     const userId = req.user.userId;
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
+
     const purchases = await db.collection('purchases')
       .aggregate([
         { $match: { userId: new ObjectId(userId) } },
@@ -391,6 +451,10 @@ app.post('/api/update-username', verifyToken, async (req, res) => {
       return res.status(400).json({ message: '新用户名不能为空' });
     }
 
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
+
     const existingUser = await db.collection('users').findOne({ username: newUsername });
     if (existingUser) {
       return res.status(400).json({ message: '用户名已存在' });
@@ -417,6 +481,10 @@ app.post('/api/watch-video', verifyToken, async (req, res) => {
   try {
     const { videoId } = req.body;
     const userId = req.user.userId;
+
+    if (!db) {
+      return res.status(500).json({ message: '数据库未连接' });
+    }
 
     const video = await db.collection('videos').findOne({ _id: new ObjectId(videoId) });
     if (!video) {
@@ -460,9 +528,11 @@ app.post('/api/watch-video', verifyToken, async (req, res) => {
 
 // 自定义 404 响应
 app.use((req, res, next) => {
+  console.log(`未找到路径: ${req.path}`);
   res.status(404).json({ message: '接口不存在' });
 });
 
+// 启动服务器
 app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 服务已启动: http://0.0.0.0:${port}`);
 });
