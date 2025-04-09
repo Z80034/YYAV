@@ -463,6 +463,6 @@ app.use((req, res, next) => {
   res.status(404).json({ message: '接口不存在' });
 });
 
-app.listen(port, ('0.0.0.0') => {
-  console.log(`🚀 服务已启动: http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 服务已启动: http://0.0.0.0:${port}`);
 });
