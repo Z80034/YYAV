@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户中心 - YYAV</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #ffe6f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #ff66b2;
+            text-align: center;
+        }
+        .section {
+            margin: 20px 0;
+        }
+        .section h3 {
+            color: #ff99cc;
+        }
+        input {
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #ff66b2;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #ff3385;
+        }
+        .wallet input {
+            width: 100px;
+            margin-right: 10px;
+        }
+        .wallet button {
+            width: auto;
+        }
+        .history-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            padding: 0;
+            margin: 10px 0;
+        }
+        .video-card {
+            background-color: #fff0f5;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .video-card:hover {
+            transform: scale(1.05);
+        }
+        .video-card video {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+        .video-card p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        .payment-options {
+            margin-top: 10px;
+            display: none;
+        }
+        .payment-option {
+            margin: 10px 0;
+            text-align: center;
+        }
+        .payment-option img {
+            width: 200px;
+            height: 200px;
+        }
+        .payment-option input {
+            width: 80%;
+            max-width: 300px;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .back-link a {
+            color: #ff66b2;
+            text-decoration: none;
+        }
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>用户中心</h2>
+        <div class="section">
+            <h3>个人信息</h3>
+            <p>用户名: <span id="username"></span></p>
+            <input type="text" id="newUsername" placeholder="新用户名">
+            <button onclick="changeUsername()">修改用户名</button>
+            <p>会员状态: <span id="membershipStatus"></span></p>
+            <button id="becomeMemberButton" style="display: none;" onclick="becomeMember()">成为永久会员（200元）</button>
+        </div>
+        <div class="section wallet">
+            <h3>我的钱包</h3>
+            <p>余额: <span id="walletBalance">0</span> 元</p>
+            <input type="number" id="rechargeAmount" placeholder="充值金额" min="1">
+            <button onclick="showPaymentOptions('wechat')">微信充值</button>
+            <button onclick="showPaymentOptions('alipay')">支付宝充值</button>
+            <div id="paymentOptions" class="payment-options">
+                <div id="wechatPayment" class="payment-option" style="display: none;">
+                    <h4>微信支付</h4>
+                    <img src="/images/wechat.jpg" alt="微信收款码">
+                    <p>请使用微信扫描二维码支付 <span id="wechatAmount"></span> 元</p>
+                    <input type="text" id="wechatTransactionId" placeholder="输入微信交易流水号">
+                    <button onclick="confirmPayment('wechat')">我已支付</button>
+                </div>
+                <div id="alipayPayment" class="payment-option" style="display: none;">
+                    <h4>支付宝支付</h4>
+                    <img src="/images/alipay.jpg" alt="支付宝收款码">
+                    <p>请使用支付宝扫描二维码支付 <span id="alipayAmount"></span> 元</p>
+                    <input type="text" id="alipayTransactionId" placeholder="输入支付宝订单号">
+                    <button onclick="confirmPayment('alipay')">我已支付</button>
+                </div>
+            </div>
+        </div>
+        <div class="section">
+            <h3>观看历史</h3>
+            <div id="historyList" class="history-list"></div>
+        </div>
+        <div class="section">
+            <h3>已购买的视频</h3>
+            <div id="purchasedVideos" class="history-list"></div>
+        </div>
+        <div class="section">
+            <button onclick="window.location.href='contact-support.html'">联系客服</button>
+        </div>
+        <div class="back-link">
+            <a href="index.html">返回首页</a>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        function loadCurrentUser() {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                updateUserCenter();
+                loadPurchasedVideos();
+            } else {
+                alert('请先登录');
+                window.location.href = 'index.html';
+            }
+        }
+
+        async function changeUsername() {
+            const newUsername = document.getElementById('newUsername').value;
+            if (!newUsername) {
+                alert('请输入新用户名');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:3000/api/update-username', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ newUsername })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    currentUser.username = newUsername;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateUserCenter();
+                    alert(data.message);
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error('修改用户名失败:', error);
+                alert('修改用户名失败');
+            }
+        }
+
+        function showPaymentOptions(method) {
+            const amount = parseFloat(document.getElementById('rechargeAmount').value);
+            if (isNaN(amount) || amount <= 0) {
+                alert('请输入有效的充值金额');
+                return;
+            }
+            document.getElementById('paymentOptions').style.display = 'block';
+            if (method === 'wechat') {
+                document.getElementById('wechatPayment').style.display = 'block';
+                document.getElementById('alipayPayment').style.display = 'none';
+                document.getElementById('wechatAmount').textContent = amount;
+            } else if (method === 'alipay') {
+                document.getElementById('alipayPayment').style.display = 'block';
+                document.getElementById('wechatPayment').style.display = 'none';
+                document.getElementById('alipayAmount').textContent = amount;
+            }
+        }
+
+        function confirmPayment(method) {
+            const amount = parseFloat(document.getElementById('rechargeAmount').value);
+            const transactionId = method === 'wechat' 
+                ? document.getElementById('wechatTransactionId').value 
+                : document.getElementById('alipayTransactionId').value;
+
+            if (!transactionId) {
+                alert('请填写支付交易流水号或订单号');
+                return;
+            }
+
+            alert(`您通过${method === 'wechat' ? '微信' : '支付宝'}支付 ${amount} 元，交易流水号：${transactionId}\n请联系客服（微信：18258208150）核实，确认后将为您充值。`);
+            console.log(`待核实充值：用户名=${currentUser.username}, 金额=${amount}, 方式=${method}, 流水号=${transactionId}`);
+            document.getElementById('rechargeAmount').value = '';
+            if (method === 'wechat') document.getElementById('wechatTransactionId').value = '';
+            if (method === 'alipay') document.getElementById('alipayTransactionId').value = '';
+            document.getElementById('paymentOptions').style.display = 'none';
+            document.getElementById('wechatPayment').style.display = 'none';
+            document.getElementById('alipayPayment').style.display = 'none';
+        }
+
+        async function becomeMember() {
+            try {
+                const response = await fetch('http://localhost:3000/api/purchase', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ type: 'membership' })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    currentUser = data.user;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateUserCenter();
+                    alert(data.message);
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                alert('购买会员失败');
+                console.error('购买会员失败:', error);
+            }
+        }
+
+        async function loadPurchasedVideos() {
+            try {
+                const response = await fetch('http://localhost:3000/api/my-videos', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const videos = await response.json();
+
+                const purchasedVideos = document.getElementById('purchasedVideos');
+                purchasedVideos.innerHTML = videos.length ? videos.map(video => `
+                    <div class="video-card">
+                        <video controls>
+                            <source src="${video.url}" type="video/mp4">
+                            您的浏览器不支持视频播放。
+                        </video>
+                        <p>${video.title}</p>
+                        <p>购买时间: ${new Date(video.purchasedAt).toLocaleString()}</p>
+                    </div>
+                `).join('') : '<p>您尚未购买任何视频</p>';
+            } catch (error) {
+                console.error('加载已购买视频失败:', error);
+                document.getElementById('purchasedVideos').innerHTML = '<p>加载视频失败</p>';
+            }
+        }
+
+        function updateUserCenter() {
+            document.getElementById('username').textContent = currentUser.username;
+            document.getElementById('walletBalance').textContent = currentUser.wallet.toFixed(2);
+            document.getElementById('membershipStatus').textContent = currentUser.isMember ? `永久会员（购买于 ${new Date(currentUser.membershipPurchasedAt).toLocaleString()}）` : '普通用户';
+            document.getElementById('becomeMemberButton').style.display = currentUser.isMember ? 'none' : 'block';
+
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            (currentUser.watchHistory || []).forEach(video => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.innerHTML = `
+                    <video controls>
+                        <source src="${video.url}" type="video/mp4">
+                        您的浏览器不支持视频播放。
+                    </video>
+                    <p>${video.title}</p>
+                `;
+                historyList.appendChild(card);
+            });
+        }
+
+        loadCurrentUser();
+    </script>
+</body>
+</html>

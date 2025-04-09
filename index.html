@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YYAV</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #ffe6f0;
+        }
+        .header {
+            background-color: #ff99cc;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header h1 {
+            margin: 0;
+            text-align: center;
+        }
+        .search-bar {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .search-bar input {
+            padding: 8px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 4px;
+            width: 200px;
+        }
+        .search-bar button {
+            padding: 8px 15px;
+            background-color: #ff66b2;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        .search-bar button:hover {
+            background-color: #ff3385;
+        }
+        .categories {
+            background-color: #ff99cc;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-around;
+            gap: 30px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .categories a {
+            color: white;
+            text-decoration: none;
+            padding: 5px 15px;
+            border-radius: 4px;
+            flex: 1;
+            text-align: center;
+        }
+        .categories a:hover {
+            background-color: #ff66b2;
+        }
+        .content {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            background-color: #ffe6f0;
+        }
+        .video-card {
+            background-color: #fff0f5;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .video-card:hover {
+            transform: scale(1.05);
+        }
+        .video-card video {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+        .video-card p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        .pagination {
+            text-align: center;
+            padding: 20px;
+            background-color: #ffe6f0;
+        }
+        .pagination button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            background-color: #ff99cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .pagination button:hover {
+            background-color: #ff66b2;
+        }
+        .pagination input {
+            width: 60px;
+            padding: 5px;
+            margin: 0 5px;
+            text-align: center;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 200;
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            width: 300px;
+            border-radius: 5px;
+            position: relative;
+        }
+        .close {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .modal-content input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .modal-content button {
+            width: 100%;
+            padding: 10px;
+            background-color: #ff66b2;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        .modal-content button:hover {
+            background-color: #ff3385;
+        }
+        .user-area {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .user-area button {
+            padding: 8px 15px;
+            background-color: #ff66b2;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        .user-area button:hover {
+            background-color: #ff3385;
+        }
+        .membership-prompt {
+            width: 100%;
+            height: 120px;
+            background-color: #ffd1e0;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .membership-status {
+            color: white;
+            margin-left: 10px;
+        }
+        .video-card.expired {
+            opacity: 0.7;
+        }
+        #registerModal .modal-content {
+            width: 350px;
+        }
+        .phone-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .phone-input input {
+            width: 60%;
+        }
+        .phone-input button {
+            width: 35%;
+            padding: 8px;
+        }
+        .buy-button {
+            padding: 5px 10px;
+            background-color: #ff66b2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        .buy-button:hover {
+            background-color: #ff3385;
+        }
+        /* 新增广告样式 */
+        .ad-banner {
+            background-color: #ff3385;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0;
+            border-bottom: 3px solid #ff66b2;
+            animation: pulse 2s infinite;
+        }
+        .ad-banner a {
+            color: #fff0f5;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>YYAV</h1>
+        <div class="search-bar">
+            <input type="text" placeholder="搜索视频..." id="searchInput">
+            <button onclick="searchVideos()">搜索</button>
+        </div>
+        <div class="user-area">
+            <button onclick="showLoginModal()">登录</button>
+            <button onclick="showRegisterModal()">注册</button>
+            <span id="userInfo" style="display:none;"></span>
+            <a id="userCenterLink" href="user-center.html" style="display:none;">
+                <button>用户中心</button>
+            </a>
+            <button id="logoutBtn" onclick="logout()" style="display:none;">退出</button>
+        </div>
+    </div>
+
+    <!-- 新增广告横幅 -->
+    <div class="ad-banner">
+        仅需 200 元成为永久会员，<span style="color: #fff0f5;">免费观看所有视频</span>！
+        <a href="user-center.html" onclick="checkLoginForAd()">立即开通</a>
+    </div>
+
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('loginModal')">×</span>
+            <h2>登录</h2>
+            <input type="text" id="loginUsername" placeholder="用户名">
+            <input type="password" id="loginPassword" placeholder="密码">
+            <button onclick="login()">登录</button>
+        </div>
+    </div>
+
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('registerModal')">×</span>
+            <h2>注册</h2>
+            <input type="text" id="regUsername" placeholder="用户名">
+            <div class="phone-input">
+                <input type="tel" id="regPhone" placeholder="手机号">
+                <button id="sendCodeBtn" onclick="sendVerificationCode()">发送验证码</button>
+            </div>
+            <input type="text" id="regCode" placeholder="验证码">
+            <input type="password" id="regPassword" placeholder="密码">
+            <input type="password" id="regConfirmPassword" placeholder="确认密码">
+            <button onclick="register()">注册</button>
+        </div>
+    </div>
+
+    <div class="categories">
+        <a href="#" data-category="all">全部</a>
+        <a href="#" data-category="action">动作</a>
+        <a href="#" data-category="comedy">喜剧</a>
+        <a href="#" data-category="sci-fi">科幻</a>
+        <a href="#" data-category="horror">恐怖</a>
+        <a href="#" data-category="romance">爱情</a>
+        <a href="#" data-category="documentary">纪录片</a>
+        <a href="#" data-category="animation">动画</a>
+    </div>
+    <div class="content" id="videoContent">
+        <!-- 动态生成视频卡片 -->
+    </div>
+    <div class="pagination" id="pagination">
+        <button onclick="prevPage()">上一页</button>
+        <span id="pageInfo">第 <span id="currentPageNum">1</span> 页 / 共 <span id="totalPagesNum">1</span> 页</span>
+        <button onclick="nextPage()">下一页</button>
+        <input type="number" id="jumpPageInput" min="1" placeholder="页码" style="width: 60px; padding: 5px; margin: 0 5px;">
+        <button onclick="jumpToPage()">跳转</button>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let tempVerificationCode = null;
+        let videos = [];
+        let filteredVideos = [];
+        let currentPage = 1;
+        const videosPerPage = 20;
+
+        function loadCurrentUser() {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                updateMembershipStatus();
+                document.getElementById('userInfo').style.display = 'inline';
+                document.getElementById('logoutBtn').style.display = 'inline';
+                document.getElementById('userCenterLink').style.display = 'inline';
+                document.querySelectorAll('.user-area button')[0].style.display = 'none';
+                document.querySelectorAll('.user-area button')[1].style.display = 'none';
+            }
+        }
+
+        function updateMembershipStatus() {
+            const userInfo = document.getElementById('userInfo');
+            if (currentUser) {
+                userInfo.textContent = `欢迎, ${currentUser.username} (${currentUser.isMember ? '永久会员' : '普通用户'}) 余额: ${currentUser.wallet} 元`;
+            }
+        }
+
+        function showLoginModal() {
+            document.getElementById('loginModal').style.display = 'block';
+        }
+
+        function showRegisterModal() {
+            document.getElementById('registerModal').style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function sendVerificationCode() {
+            const phone = document.getElementById('regPhone').value;
+            const phoneRegex = /^1[3-9]\d{9}$/;
+            if (!phoneRegex.test(phone)) {
+                alert('请输入有效的手机号');
+                return;
+            }
+            tempVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+            alert(`模拟发送验证码到 ${phone}: ${tempVerificationCode}`);
+            const sendBtn = document.getElementById('sendCodeBtn');
+            sendBtn.disabled = true;
+            let countdown = 60;
+            sendBtn.textContent = `${countdown}s 后重试`;
+            const interval = setInterval(() => {
+                countdown--;
+                sendBtn.textContent = `${countdown}s 后重试`;
+                if (countdown <= 0) {
+                    clearInterval(interval);
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = '发送验证码';
+                }
+            }, 1000);
+        }
+
+        async function register() {
+            const username = document.getElementById('regUsername').value;
+            const phone = document.getElementById('regPhone').value;
+            const code = document.getElementById('regCode').value;
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+            if (!username || !phone || !code || !password) {
+                alert('请填写所有字段');
+                return;
+            }
+            if (password !== confirmPassword) {
+                alert('两次输入的密码不一致');
+                return;
+            }
+            if (code !== tempVerificationCode) {
+                alert('验证码错误');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:3000/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, phone, password }),
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    closeModal('registerModal');
+                    loginAfterRegister(username, password);
+                } else {
+                    alert(result.message || '注册失败');
+                }
+            } catch (error) {
+                console.error('注册失败:', error);
+                alert('注册失败，请检查网络或服务器状态');
+            }
+        }
+
+        async function loginAfterRegister(username, password) {
+            try {
+                const response = await fetch('http://localhost:3000/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    currentUser = result.user;
+                    localStorage.setItem('token', result.token);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateMembershipStatus();
+                    document.getElementById('userInfo').style.display = 'inline';
+                    document.getElementById('logoutBtn').style.display = 'inline';
+                    document.getElementById('userCenterLink').style.display = 'inline';
+                    document.querySelectorAll('.user-area button')[0].style.display = 'none';
+                    document.querySelectorAll('.user-area button')[1].style.display = 'none';
+                    loadVideos();
+                    renderVideos();
+                } else {
+                    alert(result.message || '自动登录失败');
+                }
+            } catch (error) {
+                console.error('自动登录失败:', error);
+                alert('自动登录失败，请手动登录');
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    currentUser = result.user;
+                    localStorage.setItem('token', result.token);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateMembershipStatus();
+                    document.getElementById('userInfo').style.display = 'inline';
+                    document.getElementById('logoutBtn').style.display = 'inline';
+                    document.getElementById('userCenterLink').style.display = 'inline';
+                    document.querySelectorAll('.user-area button')[0].style.display = 'none';
+                    document.querySelectorAll('.user-area button')[1].style.display = 'none';
+                    closeModal('loginModal');
+                    loadVideos();
+                    renderVideos();
+                } else {
+                    alert(result.message || '登录失败');
+                }
+            } catch (error) {
+                console.error('登录失败:', error);
+                alert('登录失败，请检查网络或服务器状态');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('token');
+            document.getElementById('userInfo').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'none';
+            document.getElementById('userCenterLink').style.display = 'none';
+            document.querySelectorAll('.user-area button')[0].style.display = 'inline';
+            document.querySelectorAll('.user-area button')[1].style.display = 'inline';
+            renderVideos();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal('loginModal');
+                closeModal('registerModal');
+            }
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target.className === 'modal') {
+                closeModal('loginModal');
+                closeModal('registerModal');
+            }
+        });
+
+        async function loadVideos() {
+            try {
+                const response = await fetch('http://localhost:3000/api/videos');
+                videos = await response.json();
+                filteredVideos = videos;
+                renderVideos();
+            } catch (error) {
+                console.error('加载视频失败:', error);
+                alert('加载视频失败');
+            }
+        }
+
+        async function checkPurchase(videoId) {
+            if (!currentUser) return false;
+            try {
+                const response = await fetch(`http://localhost:3000/api/check-purchase/${videoId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('服务器未返回 JSON 格式的响应');
+                }
+
+                const data = await response.json();
+                return data.hasPurchased;
+            } catch (error) {
+                console.error('检查购买状态失败:', error);
+                return false;
+            }
+        }
+
+        async function buyVideo(videoId) {
+            if (!currentUser) {
+                showLoginModal();
+                return;
+            }
+
+            if (currentUser.isMember) {
+                alert('您是永久会员，可以免费观看所有视频');
+                renderVideos();
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:3000/api/purchase', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ type: 'video', videoId })
+                });
+
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('服务器未返回 JSON 格式的响应');
+                }
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    currentUser = data.user;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateMembershipStatus();
+                    renderVideos();
+                } else {
+                    alert(data.message || '购买失败');
+                }
+            } catch (error) {
+                console.error('购买失败:', error);
+                alert(`购买失败: ${error.message}`);
+            }
+        }
+
+        function playVideo(video) {
+            if (!currentUser) return;
+            if (!currentUser.watchHistory) currentUser.watchHistory = [];
+            const existingIndex = currentUser.watchHistory.findIndex(v => v._id === video._id);
+            if (existingIndex === -1) {
+                currentUser.watchHistory.unshift(video);
+                currentUser.watchHistory = currentUser.watchHistory.slice(0, 50);
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            }
+        }
+
+        async function renderVideos() {
+            const content = document.getElementById("videoContent");
+            content.innerHTML = "";
+            const start = (currentPage - 1) * videosPerPage;
+            const end = start + videosPerPage;
+            const pageVideos = filteredVideos.slice(start, end);
+
+            for (const video of pageVideos) {
+                const hasPurchased = await checkPurchase(video._id);
+                const card = document.createElement("div");
+                card.className = "video-card";
+
+                if (currentUser && (currentUser.isMember || hasPurchased)) {
+                    card.innerHTML = `
+                        <video controls>
+                            <source src="${video.url}" type="video/mp4">
+                            您的浏览器不支持视频播放。
+                        </video>
+                        <p>${video.title}</p>
+                    `;
+                    card.querySelector('video').addEventListener('play', () => playVideo(video));
+                } else {
+                    card.className += " expired";
+                    card.innerHTML = `
+                        <div class="membership-prompt" onclick="${currentUser ? `buyVideo('${video._id}')` : `showLoginModal()`}">
+                            ${currentUser ? '购买观看（3元）' : '请登录以购买视频'}
+                        </div>
+                        <p>${video.title}</p>
+                        ${currentUser ? `<button class="buy-button" onclick="buyVideo('${video._id}')">3元 购买</button>` : ''}
+                    `;
+                }
+                content.appendChild(card);
+            }
+
+            const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
+            document.getElementById("currentPageNum").textContent = currentPage;
+            document.getElementById("totalPagesNum").textContent = totalPages;
+            updateMembershipStatus();
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderVideos();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderVideos();
+            }
+        }
+
+        function jumpToPage() {
+            const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
+            const pageInput = document.getElementById("jumpPageInput").value;
+            const page = parseInt(pageInput);
+
+            if (isNaN(page) || page < 1 || page > totalPages) {
+                alert(`请输入有效的页码（1-${totalPages}）`);
+                document.getElementById("jumpPageInput").value = "";
+                return;
+            }
+
+            currentPage = page;
+            renderVideos();
+            document.getElementById("jumpPageInput").value = "";
+        }
+
+        function searchVideos() {
+            const query = document.getElementById("searchInput").value.toLowerCase();
+            filteredVideos = videos.filter(video => video.title.toLowerCase().includes(query));
+            currentPage = 1;
+            renderVideos();
+        }
+
+        document.querySelectorAll(".categories a").forEach(link => {
+            link.addEventListener("click", (e) => {
+                e.preventDefault();
+                const category = link.getAttribute("data-category");
+                filteredVideos = category === "all" ? videos : videos.filter(video => video.category === category);
+                currentPage = 1;
+                renderVideos();
+            });
+        });
+
+        // 广告点击跳转逻辑
+        function checkLoginForAd() {
+            if (!currentUser) {
+                showLoginModal();
+                return false; // 阻止跳转
+            }
+            return true; // 允许跳转到用户中心
+        }
+
+        loadCurrentUser();
+        loadVideos();
+    </script>
+</body>
+</html>

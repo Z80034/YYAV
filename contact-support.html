@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>联系客服 - YYAV</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #fff5f9;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+            padding: 25px;
+        }
+        h2 {
+            color: #ff66b2;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .chat-container {
+            height: 400px;
+            border: 1px solid #ffd6e7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+            background: #fff;
+        }
+        .message {
+            margin: 15px 0;
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+        .user-message {
+            justify-content: flex-end;
+        }
+        .support-message {
+            justify-content: flex-start;
+        }
+        .bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+        .user-bubble {
+            background: #ff66b2;
+            color: white;
+        }
+        .support-bubble {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .timestamp {
+            font-size: 11px;
+            color: #999;
+            margin-top: 5px;
+            text-align: right;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+        #messageInput {
+            flex: 1;
+            min-height: 60px;
+            padding: 12px;
+            border: 1px solid #ffd6e7;
+            border-radius: 8px;
+            resize: vertical;
+        }
+        #sendButton {
+            padding: 12px 24px;
+            background: #ff66b2;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #sendButton:hover {
+            background: #ff3385;
+        }
+        #sendButton:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+        .status-pending {
+            background: #ffe082;
+        }
+        .status-replied {
+            background: #81c784;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>联系客服</h2>
+        <div id="chatContainer" class="chat-container"></div>
+        <div class="input-area">
+            <textarea id="messageInput" placeholder="请详细描述您的问题..."></textarea>
+            <button id="sendButton">发送</button>
+        </div>
+    </div>
+
+    <script>
+        // 当前用户
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{"username":"guest"}');
+        
+        // DOM元素
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 绑定事件
+            sendButton.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // 加载历史消息
+            await loadMessages();
+            
+            // 模拟客服欢迎语
+            setTimeout(() => {
+                addMessage({
+                    username: '客服',
+                    content: '您好！请问有什么可以帮您？',
+                    type: 'support',
+                    timestamp: new Date()
+                });
+            }, 500);
+        });
+
+        // 加载消息
+        async function loadMessages() {
+            try {
+                const response = await fetch(`http://localhost:3000/api/user-messages?username=${currentUser.username}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const { data } = await response.json();
+                data.forEach(msg => addMessage(msg));
+            } catch (error) {
+                console.error('加载失败:', error);
+                alert('加载消息失败: ' + error.message);
+            }
+        }
+
+        // 发送消息
+        async function sendMessage() {
+            const content = messageInput.value.trim();
+            if (!content) return;
+
+            try {
+                // 禁用按钮
+                sendButton.disabled = true;
+                
+                // 立即显示消息
+                const userMsg = {
+                    username: currentUser.username,
+                    content,
+                    type: 'user',
+                    timestamp: new Date()
+                };
+                addMessage(userMsg);
+                messageInput.value = '';
+                
+                // 发送到服务器
+                const response = await fetch('http://localhost:3000/api/send-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: currentUser.username,
+                        content
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                // 模拟客服回复
+                setTimeout(() => {
+                    addMessage({
+                        username: '客服',
+                        content: '我们已收到您的消息，将尽快处理！',
+                        type: 'support',
+                        timestamp: new Date()
+                    });
+                }, 1500);
+                
+            } catch (error) {
+                console.error('发送失败:', error);
+                alert('发送失败: ' + error.message.replace(/<[^>]*>/g, ''));
+            } finally {
+                sendButton.disabled = false;
+            }
+        }
+
+        // 添加消息到界面
+        function addMessage(message) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${message.type}-message`;
+            
+            msgDiv.innerHTML = `
+                <div class="bubble ${message.type}-bubble">
+                    ${message.content}
+                    <div class="timestamp">
+                        ${formatTime(message.timestamp)}
+                    </div>
+                </div>
+            `;
+            
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // 格式化时间
+        function formatTime(date) {
+            if (!(date instanceof Date)) date = new Date(date);
+            return date.toLocaleString('zh-CN');
+        }
+    </script>
+</body>
+</html>
