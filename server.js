@@ -16,14 +16,7 @@ const port = process.env.PORT || 3000; // Render 使用 PORT 环境变量
 // 中间件
 app.use(express.json());
 app.use(cors({
-  origin: (origin, callback) => {
-    // 允许 Render 的前端域名和本地开发
-    if (!origin || origin.startsWith('http://localhost') || origin.includes('onrender.com')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: '*', // 测试时允许所有来源
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
