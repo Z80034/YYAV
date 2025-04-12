@@ -407,7 +407,7 @@
             }
 
             try {
-                const response = await fetch('http://localhost:3000/api/register', {
+                const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -425,13 +425,13 @@
                 }
             } catch (error) {
                 console.error('注册失败:', error);
-                alert('注册失败，请检查网络或服务器状态');
+                alert(`注册失败: ${error.message}`);
             }
         }
 
         async function loginAfterRegister(username, password) {
             try {
-                const response = await fetch('http://localhost:3000/api/login', {
+                const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -457,7 +457,7 @@
                 }
             } catch (error) {
                 console.error('自动登录失败:', error);
-                alert('自动登录失败，请手动登录');
+                alert(`自动登录失败: ${error.message}`);
             }
         }
 
@@ -466,7 +466,7 @@
             const password = document.getElementById('loginPassword').value;
 
             try {
-                const response = await fetch('http://localhost:3000/api/login', {
+                const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -493,7 +493,7 @@
                 }
             } catch (error) {
                 console.error('登录失败:', error);
-                alert('登录失败，请检查网络或服务器状态');
+                alert(`登录失败: ${error.message}`);
             }
         }
 
@@ -525,20 +525,20 @@
 
         async function loadVideos() {
             try {
-                const response = await fetch('http://localhost:3000/api/videos');
+                const response = await fetch('/api/videos');
                 videos = await response.json();
                 filteredVideos = videos;
                 renderVideos();
             } catch (error) {
                 console.error('加载视频失败:', error);
-                alert('加载视频失败');
+                alert(`加载视频失败: ${error.message}`);
             }
         }
 
         async function checkPurchase(videoId) {
             if (!currentUser) return false;
             try {
-                const response = await fetch(`http://localhost:3000/api/check-purchase/${videoId}`, {
+                const response = await fetch(`/api/check-purchase/${videoId}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
 
@@ -568,7 +568,7 @@
             }
 
             try {
-                const response = await fetch('http://localhost:3000/api/purchase', {
+                const response = await fetch('/api/purchase', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
