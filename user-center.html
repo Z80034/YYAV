@@ -19,24 +19,24 @@
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        h2 {
-            color: #ff66b2;
-            text-align: center;
+        .header {
+            background-color: #ff99cc;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 5px 5px 0 0;
         }
-        .section {
-            margin: 20px 0;
+        .header h2 {
+            margin: 0;
         }
-        .section h3 {
-            color: #ff99cc;
+        .user-info {
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
-        input {
-            padding: 8px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
+        .user-info button {
             padding: 8px 15px;
             background-color: #ff66b2;
             border: none;
@@ -44,22 +44,48 @@
             color: white;
             cursor: pointer;
         }
-        button:hover {
+        .user-info button:hover {
             background-color: #ff3385;
         }
-        .wallet input {
-            width: 100px;
-            margin-right: 10px;
+        .content {
+            padding: 20px;
         }
-        .wallet button {
-            width: auto;
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
         }
-        .history-list {
+        .button-card {
+            background: linear-gradient(135deg, #ff99cc, #66b3ff);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .button-card:hover {
+            transform: scale(1.05);
+        }
+        .button-card i {
+            font-size: 24px;
+        }
+        .section {
+            display: none;
+            margin-top: 20px;
+        }
+        .section.active {
+            display: block;
+        }
+        .video-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 15px;
-            padding: 0;
-            margin: 10px 0;
         }
         .video-card {
             background-color: #fff0f5;
@@ -83,6 +109,29 @@
             font-size: 14px;
             color: #333;
         }
+        .info-content p {
+            margin: 5px 0;
+        }
+        .wallet-content input {
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            width: 100px;
+            margin-right: 10px;
+        }
+        .wallet-content button {
+            padding: 8px 15px;
+            background-color: #ff66b2;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        .wallet-content button:hover {
+            background-color: #ff3385;
+        }
         .payment-options {
             margin-top: 10px;
             display: none;
@@ -98,9 +147,29 @@
         .payment-option input {
             width: 80%;
             max-width: 300px;
+            margin-top: 10px;
+        }
+        .feedback-form textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            resize: none;
+        }
+        .feedback-form button {
+            padding: 10px 20px;
+            background-color: #ff66b2;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        .feedback-form button:hover {
+            background-color: #ff3385;
         }
         .back-link {
-            display: block;
             text-align: center;
             margin: 20px 0;
         }
@@ -112,54 +181,128 @@
             text-decoration: underline;
         }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
     <div class="container">
-        <h2>用户中心</h2>
-        <div class="section">
-            <h3>个人信息</h3>
-            <p>用户名: <span id="username"></span></p>
-            <input type="text" id="newUsername" placeholder="新用户名">
-            <button onclick="changeUsername()">修改用户名</button>
-            <p>会员状态: <span id="membershipStatus"></span></p>
-            <button id="becomeMemberButton" style="display: none;" onclick="becomeMember()">成为永久会员（200元）</button>
-        </div>
-        <div class="section wallet">
-            <h3>我的钱包</h3>
-            <p>余额: <span id="walletBalance">0</span> 元</p>
-            <input type="number" id="rechargeAmount" placeholder="充值金额" min="1">
-            <button onclick="showPaymentOptions('wechat')">微信充值</button>
-            <button onclick="showPaymentOptions('alipay')">支付宝充值</button>
-            <div id="paymentOptions" class="payment-options">
-                <div id="wechatPayment" class="payment-option" style="display: none;">
-                    <h4>微信支付</h4>
-                    <img src="/images/wechat.jpg" alt="微信收款码">
-                    <p>请使用微信扫描二维码支付 <span id="wechatAmount"></span> 元</p>
-                    <input type="text" id="wechatTransactionId" placeholder="输入微信交易流水号">
-                    <button onclick="confirmPayment('wechat')">我已支付</button>
-                </div>
-                <div id="alipayPayment" class="payment-option" style="display: none;">
-                    <h4>支付宝支付</h4>
-                    <img src="/images/alipay.jpg" alt="支付宝收款码">
-                    <p>请使用支付宝扫描二维码支付 <span id="alipayAmount"></span> 元</p>
-                    <input type="text" id="alipayTransactionId" placeholder="输入支付宝订单号">
-                    <button onclick="confirmPayment('alipay')">我已支付</button>
-                </div>
+        <div class="header">
+            <h2>用户中心</h2>
+            <div class="user-info">
+                <span id="userInfo"></span>
+                <button onclick="logout()">退出</button>
+                <button onclick="window.location.href='index.html'">返回首页</button>
             </div>
         </div>
-        <div class="section">
-            <h3>观看历史</h3>
-            <div id="historyList" class="history-list"></div>
-        </div>
-        <div class="section">
-            <h3>已购买的视频</h3>
-            <div id="purchasedVideos" class="history-list"></div>
-        </div>
-        <div class="section">
-            <button onclick="window.location.href='contact-support.html'">联系客服</button>
-        </div>
-        <div class="back-link">
-            <a href="index.html">返回首页</a>
+        <div class="content">
+            <div class="button-grid">
+                <div class="button-card" onclick="showSection('profile')">
+                    <i class="fas fa-user"></i>
+                    <span>我的资料</span>
+                </div>
+                <div class="button-card" onclick="showSection('wallet')">
+                    <i class="fas fa-wallet"></i>
+                    <span>我的钱包</span>
+                </div>
+                <div class="button-card" onclick="showSection('history')">
+                    <i class="fas fa-history"></i>
+                    <span>观看历史</span>
+                </div>
+                <div class="button-card" onclick="showSection('purchased-videos')">
+                    <i class="fas fa-film"></i>
+                    <span>付费影片</span>
+                </div>
+                <div class="button-card" onclick="showSection('membership')">
+                    <i class="fas fa-crown"></i>
+                    <span>会员升级</span>
+                </div>
+                <div class="button-card" onclick="showSection('favorites')">
+                    <i class="fas fa-heart"></i>
+                    <span>我的收藏</span>
+                </div>
+                <div class="button-card" onclick="showSection('feedback')">
+                    <i class="fas fa-comment"></i>
+                    <span>我的反馈</span>
+                </div>
+                <div class="button-card" onclick="window.location.href='contact-support.html'">
+                    <i class="fas fa-headset"></i>
+                    <span>联系客服</span>
+                </div>
+            </div>
+
+            <!-- 我的资料 -->
+            <div id="profile" class="section">
+                <h3>我的资料</h3>
+                <div class="info-content">
+                    <p>用户名: <span id="username"></span></p>
+                    <input type="text" id="newUsername" placeholder="新用户名">
+                    <button onclick="changeUsername()">修改用户名</button>
+                    <p>会员状态: <span id="membershipStatus"></span></p>
+                </div>
+            </div>
+
+            <!-- 我的钱包 -->
+            <div id="wallet" class="section">
+                <h3>我的钱包</h3>
+                <div class="wallet-content">
+                    <p>余额: <span id="walletBalance">0</span> 元</p>
+                    <input type="number" id="rechargeAmount" placeholder="充值金额" min="1">
+                    <button onclick="showPaymentOptions('wechat')">微信充值</button>
+                    <button onclick="showPaymentOptions('alipay')">支付宝充值</button>
+                    <div id="paymentOptions" class="payment-options">
+                        <div id="wechatPayment" class="payment-option" style="display: none;">
+                            <h4>微信支付</h4>
+                            <img src="/images/wechat.jpg" alt="微信收款码">
+                            <p>请使用微信扫描二维码支付 <span id="wechatAmount"></span> 元</p>
+                            <input type="text" id="wechatTransactionId" placeholder="输入微信交易流水号">
+                            <button onclick="confirmPayment('wechat')">我已支付</button>
+                        </div>
+                        <div id="alipayPayment" class="payment-option" style="display: none;">
+                            <h4>支付宝支付</h4>
+                            <img src="/images/alipay.jpg" alt="支付宝收款码">
+                            <p>请使用支付宝扫描二维码支付 <span id="alipayAmount"></span> 元</p>
+                            <input type="text" id="alipayTransactionId" placeholder="输入支付宝订单号">
+                            <button onclick="confirmPayment('alipay')">我已支付</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 观看历史 -->
+            <div id="history" class="section">
+                <h3>观看历史</h3>
+                <div id="historyList" class="video-grid"></div>
+            </div>
+
+            <!-- 付费影片 -->
+            <div id="purchased-videos" class="section">
+                <h3>付费影片</h3>
+                <div id="purchasedVideos" class="video-grid"></div>
+            </div>
+
+            <!-- 会员升级 -->
+            <div id="membership" class="section">
+                <h3>会员升级</h3>
+                <button id="becomeMemberButton" onclick="becomeMember()">成为永久会员（200元）</button>
+            </div>
+
+            <!-- 我的收藏 -->
+            <div id="favorites" class="section">
+                <h3>我的收藏</h3>
+                <div id="favoritesContent" class="video-grid"></div>
+            </div>
+
+            <!-- 我的反馈 -->
+            <div id="feedback" class="section">
+                <h3>我的反馈</h3>
+                <div class="feedback-form">
+                    <textarea id="feedbackText" placeholder="请输入您的反馈..."></textarea>
+                    <button onclick="submitFeedback()">提交反馈</button>
+                </div>
+            </div>
+
+            <div class="back-link">
+                <a href="index.html">返回首页</a>
+            </div>
         </div>
     </div>
 
@@ -168,14 +311,32 @@
 
         function loadCurrentUser() {
             const savedUser = localStorage.getItem('currentUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                updateUserCenter();
-                loadPurchasedVideos();
-            } else {
+            if (!savedUser) {
                 alert('请先登录');
                 window.location.href = 'index.html';
+                return;
             }
+            currentUser = JSON.parse(savedUser);
+            updateUserCenter();
+            loadPurchasedVideos();
+            loadFavorites();
+            document.getElementById('userInfo').textContent = `欢迎, ${currentUser.username} (${currentUser.isMember ? '永久会员' : '普通用户'}) 余额: ${currentUser.wallet} 元`;
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('token');
+            window.location.href = 'index.html';
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+            if (sectionId === 'profile') updateUserCenter();
+            if (sectionId === 'purchased-videos') loadPurchasedVideos();
+            if (sectionId === 'favorites') loadFavorites();
         }
 
         async function changeUsername() {
@@ -186,7 +347,7 @@
             }
 
             try {
-                const response = await fetch('http://localhost:3000/api/update-username', {
+                const response = await fetch('/api/update-username', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -251,7 +412,7 @@
 
         async function becomeMember() {
             try {
-                const response = await fetch('http://localhost:3000/api/purchase', {
+                const response = await fetch('/api/purchase', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -277,11 +438,10 @@
 
         async function loadPurchasedVideos() {
             try {
-                const response = await fetch('http://localhost:3000/api/my-videos', {
+                const response = await fetch('/api/my-videos', {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
                 const videos = await response.json();
-
                 const purchasedVideos = document.getElementById('purchasedVideos');
                 purchasedVideos.innerHTML = videos.length ? videos.map(video => `
                     <div class="video-card">
@@ -296,6 +456,56 @@
             } catch (error) {
                 console.error('加载已购买视频失败:', error);
                 document.getElementById('purchasedVideos').innerHTML = '<p>加载视频失败</p>';
+            }
+        }
+
+        async function loadFavorites() {
+            try {
+                const response = await fetch('/api/favorites', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const favorites = await response.json();
+                const favoritesContent = document.getElementById('favoritesContent');
+                favoritesContent.innerHTML = favorites.length ? favorites.map(favorite => `
+                    <div class="video-card">
+                        <video controls>
+                            <source src="${favorite.url}" type="video/mp4">
+                            您的浏览器不支持视频播放。
+                        </video>
+                        <p>${favorite.title}</p>
+                    </div>
+                `).join('') : '<p>您暂无收藏</p>';
+            } catch (error) {
+                console.error('加载收藏失败:', error);
+                document.getElementById('favoritesContent').innerHTML = '<p>加载收藏失败</p>';
+            }
+        }
+
+        async function submitFeedback() {
+            const feedbackText = document.getElementById('feedbackText').value;
+            if (!feedbackText) {
+                alert('请输入反馈内容');
+                return;
+            }
+            try {
+                const response = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ feedback: feedbackText })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    document.getElementById('feedbackText').value = '';
+                } else {
+                    alert(result.message || '提交反馈失败');
+                }
+            } catch (error) {
+                console.error('提交反馈失败:', error);
+                alert('提交反馈失败');
             }
         }
 
@@ -321,7 +531,11 @@
             });
         }
 
-        loadCurrentUser();
+        // 默认显示我的资料
+        window.onload = () => {
+            loadCurrentUser();
+            showSection('profile');
+        };
     </script>
 </body>
 </html>
