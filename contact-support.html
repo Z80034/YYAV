@@ -59,6 +59,9 @@
             background: #f0f0f0;
             color: #333;
         }
+        .support-bubble.reply {
+            background: #e0f7fa; /* 管理员回复的背景色 */
+        }
         .timestamp {
             font-size: 11px;
             color: #999;
@@ -151,20 +154,32 @@
                     timestamp: new Date()
                 });
             }, 500);
+
+            // 每30秒刷新消息
+            setInterval(loadMessages, 30000);
         });
 
         // 加载消息
         async function loadMessages() {
             try {
-                const response = await fetch(`/api/user-messages?username=${currentUser.username}`);
+                chatContainer.innerHTML = '<p>加载中...</p>';
+                const response = await fetch(`/api/user-messages?username=${currentUser.username}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
                 const { data } = await response.json();
+                chatContainer.innerHTML = '';
+                if (!data.length) {
+                    chatContainer.innerHTML = '<p>暂无消息</p>';
+                }
                 data.forEach(msg => addMessage(msg));
             } catch (error) {
                 console.error('加载失败:', error);
-                alert('加载消息失败: ' + error.message);
+                chatContainer.innerHTML = '<p>加载消息失败，请稍后重试</p>';
             }
         }
 
@@ -190,7 +205,10 @@
                 // 发送到服务器
                 const response = await fetch('/api/send-message', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
                     body: JSON.stringify({
                         username: currentUser.username,
                         content
@@ -201,7 +219,7 @@
                     throw new Error(await response.text());
                 }
 
-                // 模拟客服回复
+                // 模拟客服自动回复
                 setTimeout(() => {
                     addMessage({
                         username: '客服',
@@ -224,14 +242,35 @@
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${message.type}-message`;
             
-            msgDiv.innerHTML = `
-                <div class="bubble ${message.type}-bubble">
+            let html = `
+                <div class="bubble ${message.type}-bubble ${message.reply ? 'reply' : ''}">
                     ${message.content}
                     <div class="timestamp">
                         ${formatTime(message.timestamp)}
                     </div>
-                </div>
             `;
+            
+            // 显示状态
+            if (message.status) {
+                html += `
+                    <span class="status status-${message.status}">
+                        ${message.status === 'replied' ? '已回复' : '待回复'}
+                    </span>
+                `;
+            }
+            
+            // 显示管理员回复
+            if (message.status === 'replied' && message.reply) {
+                html += `
+                    <div style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px;">
+                        <strong>管理员回复 (${formatTime(message.repliedAt)}):</strong>
+                        <p>${message.reply}</p>
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+            msgDiv.innerHTML = html;
             
             chatContainer.appendChild(msgDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
