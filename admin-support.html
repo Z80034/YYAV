@@ -26,6 +26,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             padding: 20px;
+            display: none; /* 默认隐藏，直到登录成功 */
         }
         
         h1 {
@@ -120,7 +121,6 @@
         }
 
         #loginForm {
-            display: none;
             position: fixed;
             top: 0;
             left: 0;
@@ -130,6 +130,7 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            display: flex; /* 默认显示登录表单 */
         }
 
         #loginForm > div {
@@ -171,10 +172,22 @@
         };
 
         const elements = {
+            container: document.querySelector('.container'),
             loading: document.getElementById('loading'),
             messagesList: document.getElementById('messagesList'),
             loginForm: document.getElementById('loginForm')
         };
+
+        // 页面加载时检查登录状态
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                elements.loginForm.style.display = 'flex';
+                elements.container.style.display = 'none';
+            } else {
+                init();
+            }
+        });
 
         async function adminLogin() {
             const username = document.getElementById('adminUsername').value;
@@ -201,6 +214,7 @@
                 const data = await response.json();
                 localStorage.setItem('adminToken', data.token);
                 elements.loginForm.style.display = 'none';
+                elements.container.style.display = 'block';
                 init();
             } catch (error) {
                 alert(error.message);
@@ -209,17 +223,17 @@
         }
 
         async function init() {
-            if (!localStorage.getItem('adminToken')) {
-                elements.loginForm.style.display = 'flex';
-                return;
-            }
-            
             try {
                 state.messages = [];
                 await loadMessages();
                 renderMessages();
             } catch (error) {
                 showError(error.message);
+                if (error.message.includes('登录已过期')) {
+                    localStorage.removeItem('adminToken');
+                    elements.loginForm.style.display = 'flex';
+                    elements.container.style.display = 'none';
+                }
             } finally {
                 state.isLoading = false;
                 updateUI();
@@ -232,6 +246,9 @@
             
             try {
                 const token = localStorage.getItem('adminToken');
+                if (!token) {
+                    throw new Error('请先登录');
+                }
                 const response = await fetch('/api/messages/admin', {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -240,8 +257,6 @@
                 
                 if (!response.ok) {
                     if (response.status === 401) {
-                        localStorage.removeItem('adminToken');
-                        elements.loginForm.style.display = 'flex';
                         throw new Error('登录已过期，请重新登录');
                     }
                     throw new Error(`HTTP错误: ${response.status}`);
@@ -263,6 +278,7 @@
             if (!token) {
                 alert('请先登录管理员账号');
                 elements.loginForm.style.display = 'flex';
+                elements.container.style.display = 'none';
                 return;
             }
 
@@ -328,7 +344,6 @@
                 return;
             }
 
-            // 按用户名分组
             const messagesByUser = {};
             state.messages.forEach(message => {
                 if (!messagesByUser[message.username]) {
@@ -382,8 +397,6 @@
             state.error = new Error(message);
             renderMessages();
         }
-
-        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>

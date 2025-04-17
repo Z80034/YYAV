@@ -84,6 +84,9 @@ function verifyToken(req, res, next) {
     }
     try {
         const decoded = jwt.verify(token, 'your_jwt_secret');
+        if (decoded.role !== 'admin') {
+            return res.status(403).json({ message: '无权限，仅限管理员' });
+        }
         req.user = decoded;
         next();
     } catch (error) {
@@ -184,6 +187,31 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// 管理员登录
+app.post('/api/admin/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        if (!username || !password) {
+            return res.status(400).json({ message: '用户名和密码不能为空' });
+        }
+
+        if (!db) {
+            throw new Error('数据库未连接');
+        }
+
+        const admin = await db.collection('admins').findOne({ username });
+        if (!admin || !(await bcryptjs.compare(password, admin.password))) {
+            return res.status(401).json({ message: '用户名或密码错误' });
+        }
+
+        const token = jwt.sign({ role: 'admin', userId: admin._id }, 'your_jwt_secret', { expiresIn: '1h' });
+        res.json({ token });
+    } catch (error) {
+        console.error('管理员登录失败:', error.message);
+        res.status(500).json({ message: '管理员登录失败: ' + error.message });
+    }
+});
+
 // 获取视频列表（允许未登录用户访问）
 app.get('/api/videos', async (req, res) => {
     try {
@@ -261,7 +289,7 @@ app.get('/api/user', verifyToken, async (req, res) => {
     }
 });
 
-// 充值接口（未使用，手动核实替代）
+// 充值接口
 app.post('/api/recharge', verifyToken, async (req, res) => {
     try {
         const { amount } = req.body;
@@ -565,7 +593,7 @@ app.post('/api/watch-video', verifyToken, async (req, res) => {
     }
 });
 
-// 新增：获取收藏列表
+// 获取收藏列表
 app.get('/api/favorites', verifyToken, async (req, res) => {
     try {
         const userId = req.user.userId;
@@ -596,7 +624,7 @@ app.get('/api/favorites', verifyToken, async (req, res) => {
     }
 });
 
-// 新增：添加收藏
+// 添加收藏
 app.post('/api/favorites', verifyToken, async (req, res) => {
     try {
         const { videoId } = req.body;
@@ -637,7 +665,7 @@ app.post('/api/favorites', verifyToken, async (req, res) => {
     }
 });
 
-// 新增：删除收藏
+// 删除收藏
 app.delete('/api/favorites/:videoId', verifyToken, async (req, res) => {
     try {
         const { videoId } = req.params;
@@ -663,7 +691,7 @@ app.delete('/api/favorites/:videoId', verifyToken, async (req, res) => {
     }
 });
 
-// 新增：获取用户消息
+// 获取用户消息
 app.get('/api/user-messages', async (req, res) => {
     try {
         const username = req.query.username;
@@ -682,7 +710,7 @@ app.get('/api/user-messages', async (req, res) => {
     }
 });
 
-// 新增：发送消息
+// 发送消息
 app.post('/api/send-message', async (req, res) => {
     try {
         const { username, content } = req.body;
@@ -705,6 +733,71 @@ app.post('/api/send-message', async (req, res) => {
     } catch (error) {
         console.error('发送消息失败:', error.message);
         res.status(500).json({ message: '发送消息失败: ' + error.message });
+    }
+});
+
+// 获取管理员消息列表
+app.get('/api/messages/admin', verifyToken, async (req, res) => {
+    try {
+        const decoded = req.user;
+        if (decoded.role !== 'admin') {
+            return res.status(403).json({ message: '无权限，仅限管理员操作' });
+        }
+
+        if (!db) {
+            throw new Error('数据库未连接');
+        }
+
+        const messages = await db.collection('messages').find().toArray();
+        res.json(messages);
+    } catch (error) {
+        console.error('获取管理员消息列表失败:', error.message);
+        res.status(500).json({ message: '获取管理员消息列表失败: ' + error.message });
+    }
+});
+
+// 回复消息
+app.post('/api/messages/:messageId/reply', verifyToken, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { content } = req.body;
+        const decoded = req.user;
+        if (decoded.role !== 'admin') {
+            return res.status(403).json({ message: '无权限，仅限管理员操作' });
+        }
+
+        if (!content) {
+            return res.status(400).json({ message: '回复内容不能为空' });
+        }
+
+        if (!db) {
+            throw new Error('数据库未连接');
+        }
+
+        const message = await db.collection('messages').findOne({ _id: new ObjectId(messageId) });
+        if (!message) {
+            return res.status(404).json({ message: '消息不存在' });
+        }
+
+        if (message.status === 'replied') {
+            return res.status(400).json({ message: '消息已回复' });
+        }
+
+        await db.collection('messages').updateOne(
+            { _id: new ObjectId(messageId) },
+            {
+                $set: {
+                    reply: content,
+                    status: 'replied',
+                    repliedAt: new Date()
+                }
+            }
+        );
+
+        res.json({ message: '回复成功' });
+    } catch (error) {
+        console.error('回复消息失败:', error.message);
+        res.status(500).json({ message: '回复消息失败: ' + error.message });
     }
 });
 
