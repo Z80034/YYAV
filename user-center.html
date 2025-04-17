@@ -389,7 +389,7 @@
             }
         }
 
-        function confirmPayment(method) {
+        async function confirmPayment(method) {
             const amount = parseFloat(document.getElementById('rechargeAmount').value);
             const transactionId = method === 'wechat' 
                 ? document.getElementById('wechatTransactionId').value 
@@ -400,8 +400,26 @@
                 return;
             }
 
-            alert(`您通过${method === 'wechat' ? '微信' : '支付宝'}支付 ${amount} 元，交易流水号：${transactionId}\n请联系客服（微信：18258208150）核实，确认后将为您充值。`);
-            console.log(`待核实充值：用户名=${currentUser.username}, 金额=${amount}, 方式=${method}, 流水号=${transactionId}`);
+            try {
+                const response = await fetch('/api/recharge-request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ amount, method, transactionId })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(`您通过${method === 'wechat' ? '微信' : '支付宝'}支付 ${amount} 元，交易流水号：${transactionId}\n${result.message}（微信：18258208150）。`);
+                } else {
+                    alert(result.message || '提交充值请求失败');
+                }
+            } catch (error) {
+                console.error('提交充值请求失败:', error);
+                alert('提交充值请求失败');
+            }
+
             document.getElementById('rechargeAmount').value = '';
             if (method === 'wechat') document.getElementById('wechatTransactionId').value = '';
             if (method === 'alipay') document.getElementById('alipayTransactionId').value = '';
