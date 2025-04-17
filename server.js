@@ -178,7 +178,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ message: '密码错误' });
         }
 
-        const token = jwt.sign({ role: 'user', userId: user._id }, 'your_jwt_secret', { expiresIn: '1h' }); // 修复：使用 user._id，role 改为 user
+        const token = jwt.sign({ role: 'user', userId: user._id }, 'your_jwt_secret', { expiresIn: '1h' });
         console.log(`登录成功: ${username}`);
         res.json({ token, user: { username: user.username, wallet: user.wallet, isMember: user.isMember } });
     } catch (error) {
@@ -191,7 +191,9 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/admin/login', async (req, res) => {
     try {
         const { username, password } = req.body;
+        console.log('收到管理员登录请求:', { username }); // 添加日志
         if (!username || !password) {
+            console.log('用户名或密码为空');
             return res.status(400).json({ message: '用户名和密码不能为空' });
         }
 
@@ -200,11 +202,21 @@ app.post('/api/admin/login', async (req, res) => {
         }
 
         const admin = await db.collection('admins').findOne({ username });
-        if (!admin || !(await bcryptjs.compare(password, admin.password))) {
+        console.log('查询到的 admin 账户:', admin); // 添加日志
+        if (!admin) {
+            console.log('用户不存在:', username);
+            return res.status(401).json({ message: '用户名或密码错误' });
+        }
+
+        const passwordMatch = await bcryptjs.compare(password, admin.password);
+        console.log('密码匹配结果:', passwordMatch); // 添加日志
+        if (!passwordMatch) {
+            console.log('密码错误:', username);
             return res.status(401).json({ message: '用户名或密码错误' });
         }
 
         const token = jwt.sign({ role: 'admin', userId: admin._id }, 'your_jwt_secret', { expiresIn: '1h' });
+        console.log('生成 token 成功:', token); // 添加日志
         res.json({ token });
     } catch (error) {
         console.error('管理员登录失败:', error.message);
@@ -695,7 +707,9 @@ app.delete('/api/favorites/:videoId', verifyToken, async (req, res) => {
 app.get('/api/user-messages', async (req, res) => {
     try {
         const username = req.query.username;
+        console.log('收到获取消息请求:', { username }); // 添加日志
         if (!username) {
+            console.log('用户名未提供');
             return res.status(400).json({ message: '用户名未提供' });
         }
         if (!db) {
@@ -703,6 +717,7 @@ app.get('/api/user-messages', async (req, res) => {
         }
 
         const messages = await db.collection('messages').find({ username }).toArray();
+        console.log('返回的消息:', messages); // 添加日志
         res.json({ data: messages });
     } catch (error) {
         console.error('获取消息失败:', error.message);
@@ -714,22 +729,25 @@ app.get('/api/user-messages', async (req, res) => {
 app.post('/api/send-message', async (req, res) => {
     try {
         const { username, content } = req.body;
+        console.log('收到发送消息请求:', { username, content }); // 添加日志
         if (!username || !content) {
+            console.log('用户名或消息内容为空');
             return res.status(400).json({ message: '用户名和消息内容不能为空' });
         }
         if (!db) {
             throw new Error('数据库未连接');
         }
 
-        await db.collection('messages').insertOne({
+        const result = await db.collection('messages').insertOne({
             username,
             content,
             type: 'user',
             timestamp: new Date(),
             status: 'pending'
         });
+        console.log('消息插入结果:', result); // 添加日志
 
-        res.json({ message: '消息发送成功' });
+        res.json({ message: '消息发送成功', messageId: result.insertedId });
     } catch (error) {
         console.error('发送消息失败:', error.message);
         res.status(500).json({ message: '发送消息失败: ' + error.message });
@@ -740,7 +758,9 @@ app.post('/api/send-message', async (req, res) => {
 app.get('/api/messages/admin', verifyToken, async (req, res) => {
     try {
         const decoded = req.user;
+        console.log('收到管理员获取消息列表请求:', { user: decoded }); // 添加日志
         if (decoded.role !== 'admin') {
+            console.log('无权限访问');
             return res.status(403).json({ message: '无权限，仅限管理员操作' });
         }
 
@@ -749,6 +769,7 @@ app.get('/api/messages/admin', verifyToken, async (req, res) => {
         }
 
         const messages = await db.collection('messages').find().toArray();
+        console.log('管理员消息列表:', messages); // 添加日志
         res.json(messages);
     } catch (error) {
         console.error('获取管理员消息列表失败:', error.message);
@@ -761,12 +782,16 @@ app.post('/api/messages/:messageId/reply', verifyToken, async (req, res) => {
     try {
         const { messageId } = req.params;
         const { content } = req.body;
+        console.log('收到回复请求:', { messageId, content }); // 添加日志
+
         const decoded = req.user;
         if (decoded.role !== 'admin') {
+            console.log('无权限，仅限管理员操作');
             return res.status(403).json({ message: '无权限，仅限管理员操作' });
         }
 
         if (!content) {
+            console.log('回复内容为空');
             return res.status(400).json({ message: '回复内容不能为空' });
         }
 
@@ -775,15 +800,18 @@ app.post('/api/messages/:messageId/reply', verifyToken, async (req, res) => {
         }
 
         const message = await db.collection('messages').findOne({ _id: new ObjectId(messageId) });
+        console.log('查询到的消息:', message); // 添加日志
         if (!message) {
+            console.log('消息不存在:', messageId);
             return res.status(404).json({ message: '消息不存在' });
         }
 
         if (message.status === 'replied') {
+            console.log('消息已回复:', messageId);
             return res.status(400).json({ message: '消息已回复' });
         }
 
-        await db.collection('messages').updateOne(
+        const result = await db.collection('messages').updateOne(
             { _id: new ObjectId(messageId) },
             {
                 $set: {
@@ -793,6 +821,12 @@ app.post('/api/messages/:messageId/reply', verifyToken, async (req, res) => {
                 }
             }
         );
+        console.log('回复保存结果:', result); // 添加日志
+
+        if (result.modifiedCount === 0) {
+            console.log('消息未更新:', messageId);
+            return res.status(500).json({ message: '消息未更新' });
+        }
 
         res.json({ message: '回复成功' });
     } catch (error) {
