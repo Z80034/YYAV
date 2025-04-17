@@ -156,12 +156,10 @@
         // 加载消息
         async function loadMessages() {
             try {
-                const response = await fetch(`http://localhost:3000/api/user-messages?username=${currentUser.username}`);
-                
+                const response = await fetch(`/api/user-messages?username=${currentUser.username}`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
-                
                 const { data } = await response.json();
                 data.forEach(msg => addMessage(msg));
             } catch (error) {
@@ -190,7 +188,7 @@
                 messageInput.value = '';
                 
                 // 发送到服务器
-                const response = await fetch('http://localhost:3000/api/send-message', {
+                const response = await fetch('/api/send-message', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
