@@ -178,7 +178,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ message: '密码错误' });
         }
 
-        const token = jwt.sign({ role: 'admin', userId: admin._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ role: 'user', userId: user._id }, 'your_jwt_secret', { expiresIn: '1h' }); // 修复：使用 user._id，role 改为 user
         console.log(`登录成功: ${username}`);
         res.json({ token, user: { username: user.username, wallet: user.wallet, isMember: user.isMember } });
     } catch (error) {
