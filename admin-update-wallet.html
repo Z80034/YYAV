@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员 - 修改用户余额</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #ff66b2;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #ff3385;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>管理员 - 修改用户余额</h2>
+        <div class="form-group">
+            <label for="username">用户名</label>
+            <input type="text" id="username" placeholder="请输入用户名">
+        </div>
+        <div class="form-group">
+            <label for="amount">余额（单位：元）</label>
+            <input type="number" id="amount" placeholder="请输入新的余额" min="0" step="0.01">
+        </div>
+        <button onclick="updateWallet()">修改余额</button>
+    </div>
+
+    <script>
+        // 动态设置 API URL（本地开发或 Render）
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000' 
+            : 'https://<your-service>.onrender.com'; // 替换为你的 Render URL
+
+        // 检查管理员权限
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        if (!currentUser.isAdmin) {
+            alert('无管理员权限，请使用管理员账户登录');
+            window.location.href = 'index.html';
+        }
+
+        async function updateWallet() {
+            const username = document.getElementById('username').value.trim();
+            const amount = parseFloat(document.getElementById('amount').value);
+
+            if (!username || isNaN(amount) || amount < 0) {
+                alert('请填写有效的用户名和金额');
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('请先登录管理员账户');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                document.querySelector('button').disabled = true;
+                console.log('发送请求:', { username, amount });
+
+                const response = await fetch(`${API_BASE_URL}/api/admin/update-wallet`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ username, amount })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    console.log('后端响应:', data);
+                    throw new Error(data.message || `请求失败: ${response.status}`);
+                }
+
+                const data = await response.json();
+                alert(data.message);
+                document.getElementById('username').value = '';
+                document.getElementById('amount').value = '';
+            } catch (error) {
+                console.error('修改余额失败:', error);
+                if (error.message.includes('Invalid Token')) {
+                    alert('令牌无效，请重新登录');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('currentUser');
+                    window.location.href = 'index.html';
+                } else {
+                    alert('修改余额失败: ' + error.message);
+                }
+            } finally {
+                document.querySelector('button').disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

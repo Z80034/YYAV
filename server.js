@@ -24,7 +24,7 @@ app.use(cors({
             callback(new Error('Not allowed by CORS'));
         }
     },
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -84,14 +84,20 @@ function verifyToken(req, res, next) {
     }
     try {
         const decoded = jwt.verify(token, 'your_jwt_secret');
-        if (decoded.role !== 'admin') {
-            return res.status(403).json({ message: '无权限，仅限管理员' });
-        }
         req.user = decoded;
         next();
     } catch (error) {
+        console.error('Token 验证失败:', error.message);
         res.status(403).json({ message: 'token 无效' });
     }
+}
+
+// 验证管理员权限的中间件
+function verifyAdmin(req, res, next) {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: '无权限，仅限管理员操作' });
+    }
+    next();
 }
 
 // 根路径路由
@@ -191,7 +197,7 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/admin/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        console.log('收到管理员登录请求:', { username }); // 添加日志
+        console.log('收到管理员登录请求:', { username });
         if (!username || !password) {
             console.log('用户名或密码为空');
             return res.status(400).json({ message: '用户名和密码不能为空' });
@@ -202,21 +208,21 @@ app.post('/api/admin/login', async (req, res) => {
         }
 
         const admin = await db.collection('admins').findOne({ username });
-        console.log('查询到的 admin 账户:', admin); // 添加日志
+        console.log('查询到的 admin 账户:', admin);
         if (!admin) {
             console.log('用户不存在:', username);
             return res.status(401).json({ message: '用户名或密码错误' });
         }
 
         const passwordMatch = await bcryptjs.compare(password, admin.password);
-        console.log('密码匹配结果:', passwordMatch); // 添加日志
+        console.log('密码匹配结果:', passwordMatch);
         if (!passwordMatch) {
             console.log('密码错误:', username);
             return res.status(401).json({ message: '用户名或密码错误' });
         }
 
         const token = jwt.sign({ role: 'admin', userId: admin._id }, 'your_jwt_secret', { expiresIn: '1h' });
-        console.log('生成 token 成功:', token); // 添加日志
+        console.log('生成 token 成功:', token);
         res.json({ token });
     } catch (error) {
         console.error('管理员登录失败:', error.message);
@@ -332,18 +338,13 @@ app.post('/api/recharge', verifyToken, async (req, res) => {
 });
 
 // 管理员修改余额接口
-app.post('/api/admin/update-wallet', async (req, res) => {
+app.post('/api/admin/update-wallet', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { username, amount } = req.body;
         console.log('收到修改余额请求:', { username, amount });
 
-        const adminToken = req.headers.authorization?.split(' ')[1];
-        if (adminToken !== 'your-admin-token') {
-            return res.status(403).json({ message: '无权限，仅限管理员操作' });
-        }
-
-        if (!username || amount === undefined) {
-            return res.status(400).json({ message: '用户名和金额不能为空' });
+        if (!username || typeof amount !== 'number' || amount < 0) {
+            return res.status(400).json({ message: '用户名和金额无效' });
         }
 
         if (!db) {
@@ -355,27 +356,31 @@ app.post('/api/admin/update-wallet', async (req, res) => {
             return res.status(404).json({ message: '用户不存在' });
         }
 
-        await db.collection('users').updateOne(
+        const updatedUser = await db.collection('users').findOneAndUpdate(
             { username },
-            { $set: { wallet: amount } }
+            { $set: { wallet: amount } },
+            { returnDocument: 'after' }
         );
 
-        res.json({ message: `用户 ${username} 的余额已更新为 ${amount} 元` });
+        console.log('余额更新:', { username, newBalance: updatedUser.value.wallet });
+        res.json({ 
+            message: `用户 ${username} 的余额已更新为 ${amount} 元`,
+            user: { 
+                username: updatedUser.value.username, 
+                wallet: updatedUser.value.wallet, 
+                isMember: updatedUser.value.isMember 
+            }
+        });
     } catch (error) {
         console.error('修改余额失败:', error.message);
         res.status(500).json({ message: '修改余额失败: ' + error.message });
     }
 });
 
-// 上传视频接口（建议使用云存储）
-app.post('/api/upload-video', upload.single('video'), async (req, res) => {
+// 上传视频接口
+app.post('/api/upload-video', verifyToken, verifyAdmin, upload.single('video'), async (req, res) => {
     try {
         const { title } = req.body;
-        const adminToken = req.headers.authorization?.split(' ')[1];
-        if (adminToken !== 'your-admin-token') {
-            return res.status(403).json({ message: '无权限，仅限管理员操作' });
-        }
-
         if (!title || !req.file) {
             return res.status(400).json({ message: '标题和视频文件不能为空' });
         }
@@ -459,7 +464,12 @@ app.post('/api/purchase', verifyToken, async (req, res) => {
         const updatedUser = await db.collection('users').findOne({ _id: new ObjectId(userId) });
         res.json({
             message: '购买成功',
-            user: { username: updatedUser.username, wallet: updatedUser.wallet, isMember: updatedUser.isMember, membershipPurchasedAt: updatedUser.membershipPurchasedAt }
+            user: { 
+                username: updatedUser.username, 
+                wallet: updatedUser.wallet, 
+                isMember: updatedUser.isMember, 
+                membershipPurchasedAt: updatedUser.membershipPurchasedAt 
+            }
         });
     } catch (error) {
         console.error('购买失败:', error.message);
@@ -707,7 +717,7 @@ app.delete('/api/favorites/:videoId', verifyToken, async (req, res) => {
 app.get('/api/user-messages', async (req, res) => {
     try {
         const username = req.query.username;
-        console.log('收到获取消息请求:', { username }); // 添加日志
+        console.log('收到获取消息请求:', { username });
         if (!username) {
             console.log('用户名未提供');
             return res.status(400).json({ message: '用户名未提供' });
@@ -717,7 +727,7 @@ app.get('/api/user-messages', async (req, res) => {
         }
 
         const messages = await db.collection('messages').find({ username }).toArray();
-        console.log('返回的消息:', messages); // 添加日志
+        console.log('返回的消息:', messages);
         res.json({ data: messages });
     } catch (error) {
         console.error('获取消息失败:', error.message);
@@ -729,7 +739,7 @@ app.get('/api/user-messages', async (req, res) => {
 app.post('/api/send-message', async (req, res) => {
     try {
         const { username, content } = req.body;
-        console.log('收到发送消息请求:', { username, content }); // 添加日志
+        console.log('收到发送消息请求:', { username, content });
         if (!username || !content) {
             console.log('用户名或消息内容为空');
             return res.status(400).json({ message: '用户名和消息内容不能为空' });
@@ -745,7 +755,7 @@ app.post('/api/send-message', async (req, res) => {
             timestamp: new Date(),
             status: 'pending'
         });
-        console.log('消息插入结果:', result); // 添加日志
+        console.log('消息插入结果:', result);
 
         res.json({ message: '消息发送成功', messageId: result.insertedId });
     } catch (error) {
@@ -758,7 +768,7 @@ app.post('/api/send-message', async (req, res) => {
 app.get('/api/messages/admin', verifyToken, async (req, res) => {
     try {
         const decoded = req.user;
-        console.log('收到管理员获取消息列表请求:', { user: decoded }); // 添加日志
+        console.log('收到管理员获取消息列表请求:', { user: decoded });
         if (decoded.role !== 'admin') {
             console.log('无权限访问');
             return res.status(403).json({ message: '无权限，仅限管理员操作' });
@@ -769,7 +779,7 @@ app.get('/api/messages/admin', verifyToken, async (req, res) => {
         }
 
         const messages = await db.collection('messages').find().toArray();
-        console.log('管理员消息列表:', messages); // 添加日志
+        console.log('管理员消息列表:', messages);
         res.json(messages);
     } catch (error) {
         console.error('获取管理员消息列表失败:', error.message);
@@ -782,7 +792,7 @@ app.post('/api/messages/:messageId/reply', verifyToken, async (req, res) => {
     try {
         const { messageId } = req.params;
         const { content } = req.body;
-        console.log('收到回复请求:', { messageId, content }); // 添加日志
+        console.log('收到回复请求:', { messageId, content });
 
         const decoded = req.user;
         if (decoded.role !== 'admin') {
@@ -800,7 +810,7 @@ app.post('/api/messages/:messageId/reply', verifyToken, async (req, res) => {
         }
 
         const message = await db.collection('messages').findOne({ _id: new ObjectId(messageId) });
-        console.log('查询到的消息:', message); // 添加日志
+        console.log('查询到的消息:', message);
         if (!message) {
             console.log('消息不存在:', messageId);
             return res.status(404).json({ message: '消息不存在' });
@@ -821,7 +831,7 @@ app.post('/api/messages/:messageId/reply', verifyToken, async (req, res) => {
                 }
             }
         );
-        console.log('回复保存结果:', result); // 添加日志
+        console.log('回复保存结果:', result);
 
         if (result.modifiedCount === 0) {
             console.log('消息未更新:', messageId);
