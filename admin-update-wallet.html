@@ -72,8 +72,8 @@
     <script>
         // 动态设置 API URL（本地开发或 Render）
         const API_BASE_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000' 
-            : 'https://<your-service>.onrender.com'; // 替换为你的 Render URL
+                ? 'http://localhost:3000' 
+                : 'https://yyav.onrender.com';
 
         // 检查管理员权限
        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
