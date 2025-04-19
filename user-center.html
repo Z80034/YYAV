@@ -429,12 +429,20 @@
         }
 
         async function becomeMember() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('请先登录');
+                window.location.href = 'index.html';
+                return;
+            }
+
             try {
+                document.getElementById('becomeMemberButton').disabled = true;
                 const response = await fetch('/api/purchase', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({ type: 'membership' })
                 });
@@ -446,11 +454,20 @@
                     updateUserCenter();
                     alert(data.message);
                 } else {
-                    alert(data.message);
+                    throw new Error(data.message || '购买会员失败');
                 }
             } catch (error) {
-                alert('购买会员失败');
                 console.error('购买会员失败:', error);
+                if (error.message.includes('Invalid Token')) {
+                    alert('令牌无效，请重新登录');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('currentUser');
+                    window.location.href = 'index.html';
+                } else {
+                    alert('购买会员失败: ' + error.message);
+                }
+            } finally {
+                document.getElementById('becomeMemberButton').disabled = false;
             }
         }
 
@@ -532,6 +549,7 @@
             document.getElementById('walletBalance').textContent = currentUser.wallet.toFixed(2);
             document.getElementById('membershipStatus').textContent = currentUser.isMember ? `永久会员（购买于 ${new Date(currentUser.membershipPurchasedAt).toLocaleString()}）` : '普通用户';
             document.getElementById('becomeMemberButton').style.display = currentUser.isMember ? 'none' : 'block';
+            document.getElementById('userInfo').textContent = `欢迎, ${currentUser.username} (${currentUser.isMember ? '永久会员' : '普通用户'}) 余额: ${currentUser.wallet} 元`;
 
             const historyList = document.getElementById('historyList');
             historyList.innerHTML = '';
