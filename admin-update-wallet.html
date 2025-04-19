@@ -76,11 +76,11 @@
             : 'https://<your-service>.onrender.com'; // 替换为你的 Render URL
 
         // 检查管理员权限
-        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        if (!currentUser.isAdmin) {
-            alert('无管理员权限，请使用管理员账户登录');
-            window.location.href = 'index.html';
-        }
+       const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+       if (!currentUser.isAdmin) {
+           alert('无管理员权限，请使用管理员账户登录');
+           window.location.href = 'admin-login.html?redirect=admin-update-wallet.html';
+       }
 
         async function updateWallet() {
             const username = document.getElementById('username').value.trim();
